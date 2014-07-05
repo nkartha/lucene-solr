@@ -239,7 +239,7 @@ public class SpellCheckComponent extends SearchComponent implements SolrCoreAwar
     //even in cases when the internal rank is the same.
     Collections.sort(collations);
 
-    NamedList collationResponse = new NamedList();
+    NamedList collationList = new NamedList();
     for (SpellCheckCollation collation : collations) {
       if (collationExtendedResults) {
         NamedList extendedResult = new SimpleOrderedMap();
@@ -250,15 +250,15 @@ public class SpellCheckComponent extends SearchComponent implements SolrCoreAwar
         {
           extendedResult.add("collationInternalRank", collation.getInternalRank());
         }
-        collationResponse.add("collation", extendedResult);
+        collationList.add("collation", extendedResult);
       } else {
-        collationResponse.add("collation", collation.getCollationQuery());
+        collationList.add("collation", collation.getCollationQuery());
         if (maxCollationTries>0 && shard) {
-          collationResponse.add("collationInternalRank", collation.getInternalRank());
+          collationList.add("collationInternalRank", collation.getInternalRank());
         }
       }
     }
-    response.add("collations", collationResponse);
+    response.add("collations", collationList);
   }
 
   /**

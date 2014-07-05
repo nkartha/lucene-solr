@@ -42,7 +42,6 @@ public class SpellCheckResponse {
       correctlySpelled = true;
       return;
     }
-    
     for (int i = 0; i < sugg.size(); i++) {
       String n = sugg.getName(i);
       @SuppressWarnings("unchecked")
@@ -51,51 +50,45 @@ public class SpellCheckResponse {
       suggestions.add(s);
     }
     
-    Boolean corrSpell = (Boolean) spellInfo.get("correctlySpelled");
-    if (corrSpell != null) {
-      correctlySpelled = corrSpell;
+    Boolean correctlySpelled = (Boolean) spellInfo.get("correctlySpelled");
+    if (correctlySpelled != null) {
+      this.correctlySpelled = correctlySpelled;
     }
     
     @SuppressWarnings("unchecked")
     NamedList<Object> coll = (NamedList<Object>) spellInfo.get("collations");
     if (coll != null) {
-      for (int i = 0; i < coll.size(); i++) {
-        String n = coll.getName(i);
-        if ("collationInternalRank".equals(n)){
-          //continue;
-        } else if ("collation".equals(n)) {
-          List<Object> collationInfo = coll.getAll(n);
-          collations = new ArrayList<>(collationInfo.size());
-          for (Object o : collationInfo) {
-            if (o instanceof String) {
-              collations.add(new Collation()
-                  .setCollationQueryString((String) o));
-            } else if (o instanceof NamedList) {
-              @SuppressWarnings("unchecked")
-              NamedList<Object> expandedCollation = (NamedList<Object>) o;
-              String collationQuery
-                = (String) expandedCollation.get("collationQuery");
-              int hits = (Integer) expandedCollation.get("hits");
-              @SuppressWarnings("unchecked")
-              NamedList<String> misspellingsAndCorrections
-                = (NamedList<String>) expandedCollation.get("misspellingsAndCorrections");
-    
-              Collation collation = new Collation();
-              collation.setCollationQueryString(collationQuery);
-              collation.setNumberOfHits(hits);
-    
-              for (int ii = 0; ii < misspellingsAndCorrections.size(); ii++) {
-                String misspelling = misspellingsAndCorrections.getName(ii);
-                String correction = misspellingsAndCorrections.getVal(ii);
-                collation.addMisspellingsAndCorrection(new Correction(
-                    misspelling, correction));
-              }
-              collations.add(collation);
-            } else {
-              throw new AssertionError(
-                  "Should get Lists of Strings or List of NamedLists here.");
-            }
+      // The 'collationInternalRank' values are ignored so we only care 'collation's.
+      List<Object> collationInfo = coll.getAll("collation");
+      collations = new ArrayList<>(collationInfo.size());
+      for (Object o : collationInfo) {
+        if (o instanceof String) {
+          collations.add(new Collation()
+              .setCollationQueryString((String) o));
+        } else if (o instanceof NamedList) {
+          @SuppressWarnings("unchecked")
+          NamedList<Object> expandedCollation = (NamedList<Object>) o;
+          String collationQuery
+            = (String) expandedCollation.get("collationQuery");
+          int hits = (Integer) expandedCollation.get("hits");
+          @SuppressWarnings("unchecked")
+          NamedList<String> misspellingsAndCorrections
+            = (NamedList<String>) expandedCollation.get("misspellingsAndCorrections");
+
+          Collation collation = new Collation();
+          collation.setCollationQueryString(collationQuery);
+          collation.setNumberOfHits(hits);
+
+          for (int ii = 0; ii < misspellingsAndCorrections.size(); ii++) {
+            String misspelling = misspellingsAndCorrections.getName(ii);
+            String correction = misspellingsAndCorrections.getVal(ii);
+            collation.addMisspellingsAndCorrection(new Correction(
+                misspelling, correction));
           }
+          collations.add(collation);
+        } else {
+          throw new AssertionError(
+              "Should get Lists of Strings or List of NamedLists here.");
         }
       }
     }

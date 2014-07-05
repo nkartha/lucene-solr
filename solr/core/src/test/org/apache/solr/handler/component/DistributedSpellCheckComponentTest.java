@@ -176,7 +176,7 @@ public class DistributedSpellCheckComponentTest extends BaseDistributedSearchTes
     query(buildRequest("lowerfilt:(\"quick red fox\")", 
         false, requestHandlerName, random().nextBoolean(), extended, "true", count, "10", 
         collate, "true", maxCollationTries, "10", maxCollations, "1", collateExtended, "false",
-        altTermCount, "5", maxResults, "13"));
+        altTermCount, "5", maxResults, "10"));
     query(buildRequest("lowerfilt:(\"rod fix\")", 
         false, requestHandlerName, random().nextBoolean(), extended, "true", count, "10", 
         collate, "true", maxCollationTries, "10", maxCollations, "1", collateExtended, "false",
