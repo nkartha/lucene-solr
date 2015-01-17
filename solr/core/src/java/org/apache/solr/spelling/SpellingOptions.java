@@ -1,12 +1,3 @@
-package org.apache.solr.spelling;
-
-import org.apache.lucene.analysis.Token;
-import org.apache.lucene.index.IndexReader;
-import org.apache.lucene.search.spell.SuggestMode;
-import org.apache.solr.common.params.SolrParams;
-
-import java.util.Collection;
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -24,9 +15,19 @@ import java.util.Collection;
  * limitations under the License.
  */
 
+package org.apache.solr.spelling;
+
+import org.apache.lucene.analysis.Token;
+import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.search.Filter;
+import org.apache.lucene.search.spell.SuggestMode;
+import org.apache.solr.common.params.SolrParams;
+
+import java.util.Collection;
+
 /**
- *
- *
+ * A set of options which can be used to modify the behavior of a {@link SolrSpellChecker}
+ * when getting suggestions.
  **/
 public class SpellingOptions {
   
@@ -56,6 +57,15 @@ public class SpellingOptions {
    * Implementation. By default set to Float.MIN_VALUE.
    */
   public float accuracy = Float.MIN_VALUE;
+  
+  /**
+   * An optional {@link org.apache.lucene.search.Filter} object which can be
+   * used to check for validity of suggestions. This is currently used by the
+   * {@link org.apache.solr.spelling.DirectSolrSpellChecker} to ensure that
+   * suggestions returned will result in some hits taking into account the main
+   * query's fq params.
+   */
+  public Filter fqFilter;
   
   /**
    * Any other custom params can be passed through. May be null and is null by
@@ -96,7 +106,7 @@ public class SpellingOptions {
   
   public SpellingOptions(Collection<Token> tokens, IndexReader reader,
       int count, Integer alternativeTermCount, SuggestMode suggestMode,
-      boolean extendedResults, float accuracy, SolrParams customParams) {
+      boolean extendedResults, float accuracy, Filter fqFilter, SolrParams customParams) {
     this.tokens = tokens;
     this.reader = reader;
     this.count = count;
@@ -104,6 +114,7 @@ public class SpellingOptions {
     this.suggestMode = suggestMode;
     this.extendedResults = extendedResults;
     this.accuracy = accuracy;
+    this.fqFilter = fqFilter;
     this.customParams = customParams;
   }
 }

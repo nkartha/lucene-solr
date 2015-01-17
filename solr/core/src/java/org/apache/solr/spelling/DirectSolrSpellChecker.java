@@ -186,7 +186,7 @@ public class DirectSolrSpellChecker extends SolrSpellChecker {
       Term term = new Term(field, tokenText);
       int freq = options.reader.docFreq(term);
       int count = (options.alternativeTermCount != null && freq > 0) ? options.alternativeTermCount: options.count;
-      SuggestWord[] suggestions = checker.suggestSimilar(term, count,options.reader, options.suggestMode, accuracy);
+      SuggestWord[] suggestions = checker.suggestSimilar(term, count,options.reader, options.suggestMode, accuracy, options.fqFilter);
       result.addFrequency(token, freq);
             
       // If considering alternatives to "correctly-spelled" terms, then add the

@@ -171,4 +171,13 @@ public interface SpellingParams {
    */
   public static final String SPELLCHECK_ACCURACY = SPELLCHECK_PREFIX + "accuracy";
   
+  /**
+   * <p>
+   * Whether the spellchecker should only return suggestions which would result in some hits, taking into account
+   * the FQ params included with the original query.
+   * This option only works when using the {@code DirectSpellChecker}.
+   * </p>
+   */
+  public static final String SPELLCHECK_CHECK_FQ = SPELLCHECK_PREFIX + "checkFQ";
+  
 }

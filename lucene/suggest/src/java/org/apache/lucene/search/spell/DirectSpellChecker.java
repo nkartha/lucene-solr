@@ -22,8 +22,11 @@ import org.apache.lucene.index.MultiFields;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.index.Terms;
 import org.apache.lucene.search.BoostAttribute;
+import org.apache.lucene.search.Filter;
 import org.apache.lucene.search.FuzzyTermsEnum;
 import org.apache.lucene.search.MaxNonCompetitiveBoostAttribute;
+import org.apache.lucene.search.TermQuery;
+import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.util.ArrayUtil;
 import org.apache.lucene.util.AttributeSource;
 import org.apache.lucene.util.BytesRef;
@@ -291,13 +294,13 @@ public class DirectSpellChecker {
   }
   
   /**
-   * Calls {@link #suggestSimilar(Term, int, IndexReader, SuggestMode, float) 
+   * Calls {@link #suggestSimilar(Term, int, IndexReader, SuggestMode, float, Filter) 
    *       suggestSimilar(term, numSug, ir, suggestMode, this.accuracy)}
    * 
    */
   public SuggestWord[] suggestSimilar(Term term, int numSug, IndexReader ir, 
       SuggestMode suggestMode) throws IOException {
-    return suggestSimilar(term, numSug, ir, suggestMode, this.accuracy);
+    return suggestSimilar(term, numSug, ir, suggestMode, this.accuracy, null);
   }
   
   /**
@@ -312,11 +315,12 @@ public class DirectSpellChecker {
    * @param ir IndexReader to find terms from
    * @param suggestMode specifies when to return suggested words
    * @param accuracy return only suggested words that match with this similarity
+   * @param fqFilter Filter used to issue queries to check that suggestions will return hits
    * @return sorted list of the suggested words according to the comparator
    * @throws IOException If there is a low-level I/O error.
    */
   public SuggestWord[] suggestSimilar(Term term, int numSug, IndexReader ir, 
-      SuggestMode suggestMode, float accuracy) throws IOException {
+      SuggestMode suggestMode, float accuracy, Filter fqFilter) throws IOException {
     final CharsRef spare = new CharsRef();
     String text = term.text();
     if (minQueryLength > 0 && text.codePointCount(0, text.length()) < minQueryLength)
@@ -352,11 +356,11 @@ public class DirectSpellChecker {
     int inspections = numSug * maxInspections;
     
     // try ed=1 first, in case we get lucky
-    terms = suggestSimilar(term, inspections, ir, docfreq, 1, accuracy, spare);
+    terms = suggestSimilar(term, inspections, ir, docfreq, 1, accuracy, fqFilter, spare);
     if (maxEdits > 1 && terms.size() < inspections) {
       HashSet<ScoreTerm> moreTerms = new HashSet<>();
       moreTerms.addAll(terms);
-      moreTerms.addAll(suggestSimilar(term, inspections, ir, docfreq, maxEdits, accuracy, spare));
+      moreTerms.addAll(suggestSimilar(term, inspections, ir, docfreq, maxEdits, accuracy, fqFilter, spare));
       terms = moreTerms;
     }
     
@@ -394,12 +398,13 @@ public class DirectSpellChecker {
    * @param docfreq The minimum document frequency a potential suggestion need to have in order to be included
    * @param editDistance The maximum edit distance candidates are allowed to have
    * @param accuracy The minimum accuracy a suggested spelling correction needs to have in order to be included
+   * @param fqFilter Filter used to issue queries to check that suggestions will return hits
    * @param spare a chars scratch
    * @return a collection of spelling corrections sorted by <code>ScoreTerm</code>'s natural order.
    * @throws IOException If I/O related errors occur
    */
   protected Collection<ScoreTerm> suggestSimilar(Term term, int numSug, IndexReader ir, int docfreq, int editDistance,
-                                                 float accuracy, final CharsRef spare) throws IOException {
+                                                 float accuracy, Filter fqFilter, final CharsRef spare) throws IOException {
     
     AttributeSource atts = new AttributeSource();
     MaxNonCompetitiveBoostAttribute maxBoostAtt =
@@ -447,6 +452,14 @@ public class DirectSpellChecker {
       
       if (score < accuracy)
         continue;
+      
+      /*
+       * If a filter has been specified, run a query for every suggestion with the filter
+       * and skip suggestions that don't return any hits.
+       */
+      if (fqFilter != null) {
+        
+      }
       
       // add new entry in PQ
       st.term = BytesRef.deepCopyOf(candidateTerm);

@@ -41,6 +41,8 @@ import org.apache.lucene.analysis.tokenattributes.PayloadAttribute;
 import org.apache.lucene.analysis.tokenattributes.PositionIncrementAttribute;
 import org.apache.lucene.analysis.tokenattributes.TypeAttribute;
 import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.search.Filter;
+import org.apache.lucene.search.Query;
 import org.apache.lucene.search.spell.SuggestMode;
 import org.apache.lucene.search.spell.SuggestWord;
 import org.apache.solr.client.solrj.response.SpellCheckResponse;
@@ -57,7 +59,10 @@ import org.apache.solr.core.SolrEventListener;
 import org.apache.solr.core.SolrResourceLoader;
 import org.apache.solr.schema.FieldType;
 import org.apache.solr.schema.IndexSchema;
+import org.apache.solr.search.QParser;
 import org.apache.solr.search.SolrIndexSearcher;
+import org.apache.solr.search.SolrIndexSearcher.ProcessedFilter;
+import org.apache.solr.search.SyntaxError;
 import org.apache.solr.spelling.AbstractLuceneSpellChecker;
 import org.apache.solr.spelling.ConjunctionSolrSpellChecker;
 import org.apache.solr.spelling.IndexBasedSpellChecker;
@@ -160,6 +165,7 @@ public class SpellCheckComponent extends SearchComponent implements SolrCoreAwar
         float accuracy = params.getFloat(SPELLCHECK_ACCURACY, Float.MIN_VALUE);
         Integer alternativeTermCount = params.getInt(SpellingParams.SPELLCHECK_ALTERNATIVE_TERM_COUNT); 
         Integer maxResultsForSuggest = params.getInt(SpellingParams.SPELLCHECK_MAX_RESULTS_FOR_SUGGEST);
+        boolean checkFq = params.getBool(SpellingParams.SPELLCHECK_CHECK_FQ, false);
         ModifiableSolrParams customParams = new ModifiableSolrParams();
         for (String checkerName : getDictionaryNames(params)) {
           customParams.add(getCustomParams(checkerName, params));
@@ -181,10 +187,15 @@ public class SpellCheckComponent extends SearchComponent implements SolrCoreAwar
             suggestMode = SuggestMode.SUGGEST_ALWAYS;
           }
           
+          // If the request included the checkFQ param, then create and pass down a Lucene Filter
+          // for the FQ params, which will be used to check that suggestions would return some hits
+          // that satisfy FQ params.
+          Filter fqFilter = getFqFilter(checkFq, rb, customParams);
+          
           IndexReader reader = rb.req.getSearcher().getIndexReader();
           SpellingOptions options = new SpellingOptions(tokens, reader, count,
               alternativeTermCount, suggestMode, extendedResults, accuracy,
-              customParams);
+              fqFilter, customParams);
           spellingResult = spellChecker.getSuggestions(options);
         } else {
           spellingResult = new SpellingResult();
@@ -549,6 +560,38 @@ public class SpellCheckComponent extends SearchComponent implements SolrCoreAwar
       return new String[] {SolrSpellChecker.DEFAULT_DICTIONARY_NAME};
     }
     return dictName;
+  }
+  
+  private Filter getFqFilter(boolean checkFq, ResponseBuilder rb, SolrParams params) throws IOException {
+    Filter fqFilter = null;
+    if (checkFq) {
+      List<Query> filters = null;
+      // Try to use the cached filter queries if already set.
+      if (rb.getFilters() != null) {
+        filters = rb.getFilters();
+      } else {
+        String[] fqs = params.getParams(CommonParams.FQ);
+        if (fqs != null && fqs.length != 0) {
+          filters =  new ArrayList<Query>(fqs.length);
+          for (String fq : fqs) {
+            if (fq != null && fq.trim().length()!=0) {
+              try {
+                QParser fqp = QParser.getParser(fq, null, rb.req);
+                filters.add(fqp.getQuery());
+              } catch (SyntaxError e) {
+                throw new SolrException(SolrException.ErrorCode.BAD_REQUEST, e);
+              }
+            }
+          }
+        }
+      }
+      
+      if (filters != null && !filters.isEmpty()) {
+        ProcessedFilter solrFilter = rb.req.getSearcher().getProcessedFilter(null, filters);
+        fqFilter = solrFilter.filter;
+      }
+    }
+    return fqFilter; 
   }
 
   /**
